@@ -20,18 +20,27 @@
 #define PIN_D6_RIGHT_WHEEL 6
 
 #define IR_DELAY 20 //50Hz
-#define BLINKY_DELAY 100 //50Hz
+#define BLINKY_DELAY 400 //100ms
 #define DELAY 40 //40ms
+#define PROXIMITY_INTERVAL 150 //150ms
+#define DRIVE_INTERVAL 10
 
 #define DIRECTION_LEFT 0
 #define DIRECTION_RIGHT 1
 #define DIRECTION_FWD 0
 #define DIRECTION_REV 1
+#define DIRECTION_STOP 2
+
+#define IR_THRESHOLD 450
 
 Servo myservo_d9;  // create servo object to control a servo
 Servo myservo_d10;  // create servo object to control a servo
+Servo wheel_left;  // create servo object to control a servo
+Servo wheel_right;  // create servo object to control a servo
 // twelve servo objects can be created on most boards
 
+volatile int pos_wheel_left = 0;
+volatile int pos_wheel_right = 0;
 volatile int pos_d9 = 0;    // variable to store the servo position
 volatile int pos_d10 = 0;    // variable to store the servo position
 
@@ -44,8 +53,12 @@ volatile int ir4 = 0;
 volatile unsigned long millisHead = 0;
 volatile unsigned long millisLED = 0;
 volatile unsigned long millisIR = 0;
+volatile unsigned long millisProx = 0; //proximity
+volatile unsigned long millisLast = 0; //proximity
 
 volatile int headDirection = DIRECTION_RIGHT;
+volatile int leftDirection = DIRECTION_STOP;
+volatile int rightDirection = DIRECTION_STOP;
 volatile int ledState = HIGH;
 
 void setup() {
@@ -63,6 +76,7 @@ void setup() {
   millisLED = currentMillis;
 
   millisIR = currentMillis;
+  millisProx = currentMillis;
 }
 
 void loop() {
@@ -70,25 +84,25 @@ void loop() {
   unsigned long currentMillis = millis();
   //
   // SERVO HEAD
-  if (currentMillis - millisHead >= DELAY) {
-    // turn head
-    millisHead = currentMillis;
-    if (headDirection == DIRECTION_RIGHT) {
-      if (pos_d9 < 180) {
-        myservo_d9.write(++pos_d9); //increment position
-      } else if (pos_d9 == 180) {
-        headDirection = DIRECTION_LEFT; //change direction
-        myservo_d9.write(--pos_d9); //decrement position
-      }
-    } else if (headDirection == DIRECTION_LEFT) {
-      if (pos_d9 > 0) {
-        myservo_d9.write(--pos_d9); //increment position
-      } else if (pos_d9 == 0) {
-        headDirection = DIRECTION_RIGHT; //change direction
-        myservo_d9.write(++pos_d9); //decrement position
-      }
-    }
-  }
+//  if (currentMillis - millisHead >= DELAY) {
+//    // turn head
+//    millisHead = currentMillis;
+//    if (headDirection == DIRECTION_RIGHT) {
+//      if (pos_d9 < 180) {
+//        myservo_d9.write(++pos_d9); //increment position
+//      } else if (pos_d9 == 180) {
+//        headDirection = DIRECTION_LEFT; //change direction
+//        myservo_d9.write(--pos_d9); //decrement position
+//      }
+//    } else if (headDirection == DIRECTION_LEFT) {
+//      if (pos_d9 > 0) {
+//        myservo_d9.write(--pos_d9); //increment position
+//      } else if (pos_d9 == 0) {
+//        headDirection = DIRECTION_RIGHT; //change direction
+//        myservo_d9.write(++pos_d9); //decrement position
+//      }
+//    }
+//  }
   //
   // BLINKY
   if (currentMillis - millisLED >= BLINKY_DELAY) {
@@ -108,8 +122,64 @@ void loop() {
     ir3 = analogRead(PIN_AIO3);
     ir4 = analogRead(PIN_AIO4);
     // print the results to the serial monitor:
-    Serial.print("sensor-ir4 = ");
+    Serial.print("sensor-ir1=");
+    Serial.print(ir1);
+    Serial.print(",sensor-ir2=");
+    Serial.print(ir2);
+    Serial.print(",sensor-ir3=");
+    Serial.print(ir3);
+    Serial.print(",sensor-ir4=");
     Serial.println(ir4);
+  }
+  //
+  // Proximity
+  if (currentMillis - millisProx >= PROXIMITY_INTERVAL) {
+    millisProx = currentMillis;
+    if (ir1 >= IR_THRESHOLD && rightDirection == DIRECTION_STOP) {
+      //move right wheel reverse
+      rightDirection = DIRECTION_REV;
+    } else if (ir3 >= IR_THRESHOLD && rightDirection == DIRECTION_STOP) {
+      //move right wheel forward
+      rightDirection = DIRECTION_FWD;
+    } else if (ir1 < IR_THRESHOLD && ir3 < IR_THRESHOLD) {
+      rightDirection = DIRECTION_STOP;
+    }
+    
+    if (ir2 >= IR_THRESHOLD && leftDirection == DIRECTION_STOP) {
+      //move left wheel forward
+      leftDirection = DIRECTION_REV;
+    } else if (ir4 >= IR_THRESHOLD && leftDirection == DIRECTION_STOP) {
+      //move left wheel forward
+      leftDirection = DIRECTION_FWD;
+    } else if (ir2 < IR_THRESHOLD && ir4 < IR_THRESHOLD){
+      leftDirection = DIRECTION_STOP;
+    }
+  }
+  //
+  // Drive
+  if (currentMillis - millisLast >= DRIVE_INTERVAL) {
+    millisLast = currentMillis;
+    // turn wheels
+    if (leftDirection == DIRECTION_FWD) {
+      wheel_left.attach(PIN_D5_LEFT_WHEEL);
+      wheel_left.write(1);
+    } else if (leftDirection == DIRECTION_REV) {
+      wheel_left.attach(PIN_D5_LEFT_WHEEL);
+      wheel_left.write(180);
+    } else {
+      wheel_left.detach();
+    }
+
+    // turn wheels
+    if (rightDirection == DIRECTION_FWD) {
+      wheel_right.attach(PIN_D6_RIGHT_WHEEL);
+      wheel_right.write(180); //the right servo is reverse of the left
+    } else if (rightDirection == DIRECTION_REV) {
+      wheel_right.attach(PIN_D6_RIGHT_WHEEL);
+      wheel_right.write(1); 
+    } else {
+      wheel_right.detach();
+    }
   }
   
 }
