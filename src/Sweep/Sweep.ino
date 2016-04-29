@@ -21,7 +21,7 @@
 
 #define IR_DELAY 20 //50Hz
 #define BLINKY_DELAY 400 //100ms
-#define DELAY 40 //40ms
+#define DELAY 25 //40ms
 #define PROXIMITY_INTERVAL 150 //150ms
 #define DRIVE_INTERVAL 10
 
@@ -31,7 +31,7 @@
 #define DIRECTION_REV 1
 #define DIRECTION_STOP 2
 
-#define IR_THRESHOLD 450
+#define IR_THRESHOLD 590
 
 Servo myservo_d9;  // create servo object to control a servo
 Servo myservo_d10;  // create servo object to control a servo
@@ -41,7 +41,7 @@ Servo wheel_right;  // create servo object to control a servo
 
 volatile int pos_wheel_left = 0;
 volatile int pos_wheel_right = 0;
-volatile int pos_d9 = 0;    // variable to store the servo position
+volatile int pos_d9 = 90;    // variable to store the servo position
 volatile int pos_d10 = 0;    // variable to store the servo position
 
 //IR sensor values
@@ -135,22 +135,33 @@ void loop() {
   // Proximity
   if (currentMillis - millisProx >= PROXIMITY_INTERVAL) {
     millisProx = currentMillis;
-    if (ir1 >= IR_THRESHOLD && rightDirection == DIRECTION_STOP) {
+    if (ir1 >= IR_THRESHOLD && 
+        ir3 < IR_THRESHOLD && 
+        rightDirection == DIRECTION_STOP) {
       //move right wheel reverse
       rightDirection = DIRECTION_REV;
-    } else if (ir3 >= IR_THRESHOLD && rightDirection == DIRECTION_STOP) {
+      myservo_d9.write(125);
+    } else if (ir1 < IR_THRESHOLD &&
+        ir3 >= IR_THRESHOLD && 
+        rightDirection == DIRECTION_STOP) {
       //move right wheel forward
       rightDirection = DIRECTION_FWD;
+      myservo_d9.write(1);
     } else if (ir1 < IR_THRESHOLD && ir3 < IR_THRESHOLD) {
       rightDirection = DIRECTION_STOP;
     }
     
-    if (ir2 >= IR_THRESHOLD && leftDirection == DIRECTION_STOP) {
+    if (ir2 >= IR_THRESHOLD && 
+      ir4 < IR_THRESHOLD && 
+      leftDirection == DIRECTION_STOP) {
       //move left wheel forward
       leftDirection = DIRECTION_REV;
-    } else if (ir4 >= IR_THRESHOLD && leftDirection == DIRECTION_STOP) {
+      myservo_d9.write(45);
+    } else if (ir2 < IR_THRESHOLD &&
+      ir4 >= IR_THRESHOLD && leftDirection == DIRECTION_STOP) {
       //move left wheel forward
       leftDirection = DIRECTION_FWD;
+      myservo_d9.write(179);
     } else if (ir2 < IR_THRESHOLD && ir4 < IR_THRESHOLD){
       leftDirection = DIRECTION_STOP;
     }
